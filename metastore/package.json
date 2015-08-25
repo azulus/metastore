@@ -1,0 +1,22 @@
+{
+  "name": "metastore",
+  "description": "data metastore",
+  "version": "0.0.3",
+  "homepage": "https://github.com/azulus/metastore",
+  "authors": [
+    "Jeremy Stanley <github@azulus.com> (https://github.com/azulus)"
+  ],
+  "contributors": [],
+  "keywords": [],
+  "main": "./index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/azulus/metastore.git"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "grunt": "*",
+    "lodash": "*"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "grunt-metastore",
+  "description": "data metastore grunt task",
+  "version": "0.0.2",
+  "homepage": "https://github.com/azulus/grunt-metastore",
+  "authors": [
+    "Jeremy Stanley <github@azulus.com> (https://github.com/azulus)"
+  ],
+  "contributors": [],
+  "keywords": [],
+  "main": "./index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/azulus/grunt-metastore.git"
+  },
+  "dependencies": {
+      "es6-promise": "*",
+      "metastore": "0.0.1"
+  },
+  "devDependencies": {
+    "grunt": "*"
+  }
+}
