@@ -15,11 +15,13 @@ module.exports = function(grunt) {
         var runCommand = function (filename) {
             return new Promise(function (resolve, reject) {
                 exec(command.replace(/\{\{\s*filename\s*\}\}/g, filename), function (err, stdout, stderr) {
+                    // use stderr as a way of outputting debugging data from extractor
                     if (stderr) {
-                        reject(new Error(stderr));
+                        console.log(stderr);
                     } else if (err) {
                         reject(err);
                     } else {
+                        process.stdout.write(".");
                         resolve(JSON.parse(stdout));
                     }
                 });
