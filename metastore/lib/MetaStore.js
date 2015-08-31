@@ -58,7 +58,7 @@ MetaStore.prototype.query = function (queryString, isParsed) {
 
 MetaStore.prototype._getCompiled = function () {
     if (this._compiled === undefined) {
-        this._compiled = Util.compressData(this._rawData, 2);
+        this._compiled = Util.compressData(this._rawData);
     }
 
     return this._compiled;

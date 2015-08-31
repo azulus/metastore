@@ -106,6 +106,11 @@ module.exports.testConstruct = function (test) {
       }
     ]);
 
+    test.deepEqual(store.query('Module{id}'), [
+      {id: 'Pin'},
+      {id: 'PinImage'}
+    ]);
+
     test.equal(store === undefined, false);
     test.done();
 };

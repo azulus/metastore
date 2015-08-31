@@ -41,7 +41,7 @@ MultiMetaStore.prototype.removeFile = function (fileName) {
 
 MultiMetaStore.prototype.query = function (queryString) {
     var query = GraphQL.parse(queryString);
-    
+
     if (!query.hasChild('id')) {
         throw new Error('id is a required response field for MultiMetaStore queries');
     }
@@ -56,7 +56,7 @@ MultiMetaStore.prototype.query = function (queryString) {
         return data !== undefined;
     }));
 
-    return Util.compressData({'all_extractors': {'all_files': results}}, 2)[query.getType()];
+    return Util.compressData({'all_extractors': {'all_files': results}})[query.getType()];
 };
 
 module.exports = MultiMetaStore;

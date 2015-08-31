@@ -28,6 +28,58 @@ module.exports = function(grunt) {
             });
         };
 
+        var enqueuePromiseGenerator = function (fn, maxSimultaneous) {
+            var runQueue = [];
+            var numRunning = 0;
+
+            var runNext = function() {
+                if (numRunning >= maxSimultaneous) {
+                    return;
+                }
+
+                if (runQueue.length === 0) {
+                    return;
+                }
+                process.stdout.write('.');
+
+                // run the next in the queue
+                numRunning++;
+                var next = runQueue.shift();
+                var fnPromise = fn.apply(next.scope, next.args);
+                fnPromise.then(function () {
+                    numRunning--;
+                    process.nextTick(runNext);
+                });
+
+                fnPromise.then(function (data){
+                    next.resolve(data);
+                }, function(err) {
+                    next.reject(data);
+                })
+            };
+
+            return function() {
+                var queuedItem = {
+                    scope: this,
+                    args: arguments,
+                    promise: null,
+                    resolve: null,
+                    reject: null
+                };
+
+                queuedItem.promise = new Promise(function (resolve, reject) {
+                    queuedItem.resolve = resolve;
+                    queuedItem.reject = reject;
+                });
+                runQueue.push(queuedItem);
+
+                runNext();
+
+                return queuedItem.promise;
+            };
+        }
+
+
         var extractorPromises = [];
 
         this.files.forEach(function (file) {
@@ -39,6 +91,7 @@ module.exports = function(grunt) {
             //     console.warn(e.message);
             // }
             var filePromises = [];
+            var runCommandEnqueued = enqueuePromiseGenerator(runCommand, 2);
 
             var writeMetadata = function () {
                 done();
@@ -49,7 +102,7 @@ module.exports = function(grunt) {
 
                 // find all references to P.whatever.doSomething() and convert to:
                 // var whatever = require('P.whatever'); assert.equal(whatever, P.whatever); whatever.doSomething()
-                filePromises.push(runCommand(src).then(function (data) {
+                filePromises.push(runCommandEnqueued(src).then(function (data) {
                     store.addData(taskName, path.relative(relativeRoot, src), data);
                 }));
             });
