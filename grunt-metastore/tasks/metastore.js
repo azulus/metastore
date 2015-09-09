@@ -5,6 +5,74 @@ var Promise = require('es6-promise').Promise;
 
 var MetaStore = require('metastore').MetaStore;
 
+var numCPUs = require('os').cpus().length;
+
+/**
+ * Wraps promise generators in a queuing function
+ * @param  {Function} fn
+ * @param  {number}   maxSimultaneous
+ * @return {Promise}
+ */
+var enqueuePromiseGenerator = function (fn, maxSimultaneous) {
+    var runQueue = [];
+    var numRunning = 0;
+
+    /**
+     * Runs the next promise generator in the queue
+     */
+    var runNext = function() {
+        if (numRunning >= maxSimultaneous) {
+            return;
+        }
+
+        if (runQueue.length === 0) {
+            return;
+        }
+        process.stdout.write('.');
+
+        // run the next in the queue
+        numRunning++;
+        var next = runQueue.shift();
+        var fnPromise = fn.apply(next.scope, next.args);
+        fnPromise.then(function () {
+            numRunning--;
+            process.nextTick(runNext);
+        });
+
+        fnPromise.then(function (data){
+            next.resolve(data);
+        }, function(err) {
+            next.reject(data);
+        });
+    };
+
+    /**
+     * Creates a proxied promise generator function around the original promise
+     * generator
+     * @param {...*} var_args
+     * @return {Promise}
+     */
+    return function(var_args) {
+        var queuedItem = {
+            scope: this,
+            args: arguments,
+            promise: null,
+            resolve: null,
+            reject: null
+        };
+
+        queuedItem.promise = new Promise(function (resolve, reject) {
+            queuedItem.resolve = resolve;
+            queuedItem.reject = reject;
+        });
+        runQueue.push(queuedItem);
+
+        runNext();
+
+        return queuedItem.promise;
+    };
+};
+
 module.exports = function(grunt) {
     grunt.task.registerMultiTask('extract_metadata', 'Extracts metadata from source code', function() {
         var done = this.async();
@@ -12,106 +80,119 @@ module.exports = function(grunt) {
 
         var relativeRoot = this.data.relativeRoot || process.cwd();
         var command = this.data.command;
-        var runCommand = function (filename) {
-            return new Promise(function (resolve, reject) {
-                exec(command.replace(/\{\{\s*filename\s*\}\}/g, filename), function (err, stdout, stderr) {
-                    // use stderr as a way of outputting debugging data from extractor
-                    if (stderr) {
-                        console.log(stderr);
-                    } else if (err) {
-                        reject(err);
-                    } else {
-                        process.stdout.write(".");
-                        resolve(JSON.parse(stdout));
-                    }
-                });
-            });
-        };
-
-        var enqueuePromiseGenerator = function (fn, maxSimultaneous) {
-            var runQueue = [];
-            var numRunning = 0;
-
-            var runNext = function() {
-                if (numRunning >= maxSimultaneous) {
-                    return;
-                }
-
-                if (runQueue.length === 0) {
-                    return;
-                }
-                process.stdout.write('.');
-
-                // run the next in the queue
-                numRunning++;
-                var next = runQueue.shift();
-                var fnPromise = fn.apply(next.scope, next.args);
-                fnPromise.then(function () {
-                    numRunning--;
-                    process.nextTick(runNext);
-                });
-
-                fnPromise.then(function (data){
-                    next.resolve(data);
-                }, function(err) {
-                    next.reject(data);
-                })
-            };
-
-            return function() {
-                var queuedItem = {
-                    scope: this,
-                    args: arguments,
-                    promise: null,
-                    resolve: null,
-                    reject: null
-                };
-
-                queuedItem.promise = new Promise(function (resolve, reject) {
-                    queuedItem.resolve = resolve;
-                    queuedItem.reject = reject;
-                });
-                runQueue.push(queuedItem);
-
-                runNext();
-
-                return queuedItem.promise;
-            };
-        }
-
+        var strCommand = command.join(' ');
+        var commandFile = command[1];
 
         var extractorPromises = [];
 
         this.files.forEach(function (file) {
-            var store = new MetaStore();
-            var dest = file.dest;
-            // try {
-            //     store.import(fs.readFileSync(file.dest, 'utf8'));
-            // } catch (e) {
-            //     console.warn(e.message);
-            // }
-            var filePromises = [];
-            var runCommandEnqueued = enqueuePromiseGenerator(runCommand, 2);
+            // iterate through each file glob, extract metadata, and write to
+            // output store
+            var currentMTimePromises = {};
+            var currentMTimes = {};
+            var previousMTimes = {};
 
-            var writeMetadata = function () {
-                done();
+            /**
+             * Gets the mtime for a file
+             * @param  {String} filename
+             * @return {Promise.<number>}
+             */
+            var getFileMTime = function (filename) {
+                if (!currentMTimePromises[filename]) {
+                    currentMTimePromises[filename] = new Promise(function (resolve, reject) {
+                        fs.stat(filename, function (err, data) {
+                            if (err) {
+                                reject(err);
+                            } else {
+                                currentMTimes[filename] = data.mtime.getTime();
+                                resolve(currentMTimes[filename]);
+                            }
+                        });
+                    });
+                }
+                return currentMTimePromises[filename];
+            };
+
+            /**
+             * Runs the current extractor against a given filename
+             * @param  {string} filename
+             * @return {Object} free-form extractor data
+             */
+            var runExtractor = function (filename, relativeFilename) {
+                var mTimePromise = Promise.all([getFileMTime(commandFile), getFileMTime(filename)]);
+                return mTimePromise.then(function (mtimes) {
+
+                    if (previousMTimes[filename] && currentMTimes[filename] === previousMTimes[filename] &&
+                            previousMTimes[commandFile] && currentMTimes[commandFile] === previousMTimes[commandFile]) {
+                        // use a cached version of the extracted data
+                        return new Promise(function (resolve, reject) {
+                            resolve(store.getData(taskName, relativeFilename));
+                        });
+                    } else {
+                        // re-extract the data
+                        return new Promise(function (resolve, reject) {
+                            exec(strCommand.replace(/\{\{\s*filename\s*\}\}/g, filename), function (err, stdout, stderr) {
+                                // use stderr as a way of outputting debugging data from extractor
+                                if (stderr) {
+                                    console.log(stderr);
+                                } else if (err) {
+                                    reject(err);
+                                } else {
+                                    process.stdout.write(".");
+                                    resolve(JSON.parse(stdout));
+                                }
+                            });
+                        });
+                    }
+                });
+            };
+
+            // initialize and import the store if it exists
+            var store = new MetaStore();
+            try {
+                store.import(fs.readFileSync(file.dest, 'utf8'));
+                var caches = store.query('MTimeCache{cache}');
+                if (caches && caches.length) {
+                    previousMTimes = caches[0].cache || {};
+                }
+            } catch (e) {
+                console.warn(e.message);
             }
 
-            file.src.forEach(function (srcFile) {
-                var src = srcFile;
+            // wrap the extractors in a queuing function to make the computer happy
+            var numExtractors = Math.max(numCPUs - 1, 1);
+            var runExtractorEnqueued = enqueuePromiseGenerator(runExtractor, numExtractors);
 
-                // find all references to P.whatever.doSomething() and convert to:
-                // var whatever = require('P.whatever'); assert.equal(whatever, P.whatever); whatever.doSomething()
-                filePromises.push(runCommandEnqueued(src).then(function (data) {
-                    store.addData(taskName, path.relative(relativeRoot, src), data);
-                }));
+            // generate a promise for each source file in this extractor
+            var filePromises = file.src.map(function (srcFile) {
+                var relativeFilename = path.relative(relativeRoot, srcFile);
+                return runExtractorEnqueued(srcFile, relativeFilename).then(function (data) {
+                    store.addData(taskName, relativeFilename, data);
+                });
             });
 
+            // generate a promise for writing to the dest file
             extractorPromises.push(Promise.all(filePromises).then(function () {
+                // remove unused data
+                for (var key in previousMTimes) {
+                    if (!currentMTimes[key]) {
+                        store.removeFile(key);
+                    }
+                }
+
+                // add mtime cache data
+                var mtimeCache = {};
+                store.addData(taskName, '__metadata', [{
+                    type: 'MTimeCache',
+                    id: taskName,
+                    cache: currentMTimes
+                }]);
+
                 fs.writeFileSync(file.dest, store.export());
             }));
-        })
+        });
 
+        // wait for all dest file writing promises to complete
         Promise.all(extractorPromises).then(function (data) {
             done();
         }, function (err) {

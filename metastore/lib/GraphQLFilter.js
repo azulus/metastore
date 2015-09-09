@@ -48,6 +48,10 @@ var resolveQuery = function (sourceObj, query) {
       destObj = {};
 
       var queryFields = query.getChildKeys();
+      if (!queryFields.length) {
+          return sourceObj;
+      }
+
       for (i = 0; i < queryFields.length; i++) {
         var pairs = [];
         var queryField = queryFields[i];
@@ -67,7 +71,7 @@ var resolveQuery = function (sourceObj, query) {
 
       return destObj;
 
-    } else if (typeof sourceObj !== 'object'){
+    } else {
       // handle primitive types
       return sourceObj;
     }

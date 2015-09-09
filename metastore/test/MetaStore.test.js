@@ -4,7 +4,11 @@ var data1 = [
     {
         type: 'Module',
         id: 'Pin',
-        view_types: ['summary', 'detailed']
+        view_types: ['summary', 'detailed'],
+        cache: {
+            file1: 123,
+            file2: 456
+        }
     }
 ];
 
@@ -49,6 +53,10 @@ module.exports.testConstruct = function (test) {
     store.addData('extractor2', 'file1', data2);
     store.addData('extractor1', 'file2', data3);
     store.addData('extractor2', 'file2', data4);
+
+    test.deepEqual(store.query('Module.id(Pin){cache}'), [{
+      cache: data1[0].cache
+    }]);
 
     test.deepEqual(store.query('Module.id(Header){view_types}'), [{
       view_types: data3[0].view_types

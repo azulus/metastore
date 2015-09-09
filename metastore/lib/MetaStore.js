@@ -24,6 +24,11 @@ MetaStore.prototype.addData = function (extractorName, fileName, data) {
     this._resetCompile();
 };
 
+MetaStore.prototype.getData = function (extractorName, fileName) {
+    if (!this._rawData[extractorName]) return []
+    return this._rawData[extractorName][fileName] || [];
+};
+
 MetaStore.prototype.getExtractors = function () {
     return Object.keys(this._rawData);
 };
