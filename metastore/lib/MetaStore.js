@@ -37,7 +37,9 @@ MetaStore.prototype.getFiles = function () {
     var fileNameMap = {};
     for (var key in this._rawData) {
         for (var fileName in this._rawData[key]) {
-            fileNameMap[fileName] = true;
+            if (fileName !== '__metadata') {
+                fileNameMap[fileName] = true;
+            }
         }
     }
     return Object.keys(fileNameMap);
