@@ -1,22 +1,33 @@
+//TODO(tuanderful): implement modifiers
+var constructRegex = function(str) {
+    var expression = str.substr(1, str.length-2);
+    return new RegExp(expression);
+};
+
 var getChainEvaluator = function (chain) {
     var state = {};
     return function(obj) {
         if (chain === undefined) return true;
+        var arg;
 
         for (var i = 1; i < chain.length; i++) {
             var step = chain[i];
 
             switch(step.key) {
                 case "id":
-                    if (step.args.indexOf(obj.id) === -1) {
-                        return false;
+                    for (var j = 0; j < step.args.length; j++) {
+                        arg = step.args[j];
+                        if ((arg === obj.id) ||
+                            (arg.match(/^\/.*\/$/) && obj.id.match(constructRegex(arg)))) {
+
+                            return true;
+                        }
                     }
-                    break;
+                    return false;
                 case "with":
                     if (obj[step.args[0]] !== step.args[1]) {
                         return false;
                     }
-                    break;
                 default:
                     throw new Error('unknown filter: ' + step.key);
             }

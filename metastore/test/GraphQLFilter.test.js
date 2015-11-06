@@ -45,5 +45,31 @@ module.exports.testBasic = function (test) {
         ]
     });
 
+    filtered = GraphQLFilter.filter(obj, GraphQL.parse('Object{users.id(/2/){name}}'));
+    test.deepEqual(filtered, {
+        users:[
+            {
+                name:obj.users[1].name
+            }
+        ]
+    });
+
+    filtered = GraphQLFilter.filter(obj, GraphQL.parse('Object{users.id(/ser/){age}}'));
+    test.deepEqual(filtered, {
+        users:[
+            {
+                age:obj.users[0].age
+            },
+            {
+                age:obj.users[1].age
+            }
+        ]
+    });
+
+    filtered = GraphQLFilter.filter(obj, GraphQL.parse('Object{users.id(/^2/){name}}'));
+    test.deepEqual(filtered, {
+        users:[]
+    });
+
     test.done();
 };
