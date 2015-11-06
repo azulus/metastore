@@ -8,8 +8,7 @@ var getChainEvaluator = function (chain) {
     var state = {};
     return function(obj) {
         if (chain === undefined) return true;
-        var arg,
-            found;
+        var found;
 
         for (var i = 1; i < chain.length; i++) {
             var step = chain[i];
@@ -17,15 +16,14 @@ var getChainEvaluator = function (chain) {
             switch(step.key) {
                 case "id":
                     found = false;
-                    for (var j = 0; j < step.args.length; j++) {
-                        arg = step.args[j];
-
+                    step.args.forEach(function(arg){
                         if ((arg === obj.id) ||
                             (arg.match(/^\/.*\/$/) && obj.id.match(constructRegex(arg)))) {
 
                             found = true;
                         }
-                    }
+                    });
+
                     if (!found) {
                         return false;
                     }
