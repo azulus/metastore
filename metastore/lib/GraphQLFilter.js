@@ -8,26 +8,33 @@ var getChainEvaluator = function (chain) {
     var state = {};
     return function(obj) {
         if (chain === undefined) return true;
-        var arg;
+        var arg,
+            found;
 
         for (var i = 1; i < chain.length; i++) {
             var step = chain[i];
 
             switch(step.key) {
                 case "id":
+                    found = false;
                     for (var j = 0; j < step.args.length; j++) {
                         arg = step.args[j];
+
                         if ((arg === obj.id) ||
                             (arg.match(/^\/.*\/$/) && obj.id.match(constructRegex(arg)))) {
 
-                            return true;
+                            found = true;
                         }
                     }
-                    return false;
+                    if (!found) {
+                        return false;
+                    }
+                    break;
                 case "with":
                     if (obj[step.args[0]] !== step.args[1]) {
                         return false;
                     }
+                    break;
                 default:
                     throw new Error('unknown filter: ' + step.key);
             }
