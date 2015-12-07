@@ -83,6 +83,16 @@ module.exports = function(grunt) {
         var strCommand = command.join(' ');
         var commandFile = command[1];
 
+        /**
+         * Get a filename relative to the root of the extraction task
+         * @param  {string} filename
+         * @return {string}
+         */
+        var getRelativeFilename = function (filename) {
+            return path.relative(relativeRoot, filename);
+        };
+
+        var relativeCommandFile = getRelativeFilename(commandFile);
         var extractorPromises = [];
 
         this.files.forEach(function (file) {
@@ -104,8 +114,9 @@ module.exports = function(grunt) {
                             if (err) {
                                 reject(err);
                             } else {
-                                currentMTimes[filename] = data.mtime.getTime();
-                                resolve(currentMTimes[filename]);
+                                var relativeFilename = path.relative(relativeRoot, filename);
+                                currentMTimes[relativeFilename] = data.mtime.getTime();
+                                resolve(currentMTimes[relativeFilename]);
                             }
                         });
                     });
@@ -122,8 +133,8 @@ module.exports = function(grunt) {
                 var mTimePromise = Promise.all([getFileMTime(commandFile), getFileMTime(filename)]);
                 return mTimePromise.then(function (mtimes) {
 
-                    if (previousMTimes[filename] && currentMTimes[filename] === previousMTimes[filename] &&
-                            previousMTimes[commandFile] && currentMTimes[commandFile] === previousMTimes[commandFile]) {
+                    if (previousMTimes[relativeFilename] && currentMTimes[relativeFilename] === previousMTimes[relativeFilename] &&
+                            previousMTimes[relativeCommandFile] && currentMTimes[relativeCommandFile] === previousMTimes[relativeCommandFile]) {
                         // use a cached version of the extracted data
                         return new Promise(function (resolve, reject) {
                             resolve(store.getData(taskName, relativeFilename));
@@ -165,7 +176,7 @@ module.exports = function(grunt) {
 
             // generate a promise for each source file in this extractor
             var filePromises = file.src.map(function (srcFile) {
-                var relativeFilename = path.relative(relativeRoot, srcFile);
+                var relativeFilename = getRelativeFilename(srcFile);
                 return runExtractorEnqueued(srcFile, relativeFilename).then(function (data) {
                     store.addData(taskName, relativeFilename, data);
                 });
@@ -176,6 +187,7 @@ module.exports = function(grunt) {
                 // remove unused data
                 for (var key in previousMTimes) {
                     if (!currentMTimes[key]) {
+                        var relativeFilename = getRelativeFilename(key);
                         store.removeFile(key);
                     }
                 }
