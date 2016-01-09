@@ -14,8 +14,9 @@
     "url": "https://github.com/azulus/metastore.git"
   },
   "dependencies": {
-      "es6-promise": "*",
-      "metastore": "0.0.9"
+    "es6-promise": "*",
+    "md5-file": "^2.0.4",
+    "metastore": "0.0.9"
   },
   "devDependencies": {
     "grunt": "*"

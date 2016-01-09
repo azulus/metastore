@@ -2,6 +2,7 @@ var fs = require('fs');
 var path = require('path');
 var exec = require('child_process').exec;
 var Promise = require('es6-promise').Promise;
+var md5 = require('md5-file');
 
 var MetaStore = require('metastore').MetaStore;
 
@@ -107,15 +108,18 @@ module.exports = function(grunt) {
              * @param  {String} filename
              * @return {Promise.<number>}
              */
-            var getFileMTime = function (filename) {
+            var getFileMTime = function (filename, useMD5) {
+                // Decide whether to hash the file using the md5-file module or MTimes
+                var hashFn = useMD5 ? md5 : fs.stat;
+
                 if (!currentMTimePromises[filename]) {
-                    currentMTimePromises[filename] = new Promise(function (resolve, reject) {
-                        fs.stat(filename, function (err, data) {
+                    currentMTimePromises[filename] = new Promise(function(resolve, reject) {
+                        hashFn(filename, function(err, data) {
                             if (err) {
                                 reject(err);
                             } else {
                                 var relativeFilename = path.relative(relativeRoot, filename);
-                                currentMTimes[relativeFilename] = data.mtime.getTime();
+                                currentMTimes[relativeFilename] = useMD5 ? data : data.mtime.getTime();
                                 resolve(currentMTimes[relativeFilename]);
                             }
                         });
@@ -130,9 +134,8 @@ module.exports = function(grunt) {
              * @return {Object} free-form extractor data
              */
             var runExtractor = function (filename, relativeFilename) {
-                var mTimePromise = Promise.all([getFileMTime(commandFile), getFileMTime(filename)]);
+                var mTimePromise = Promise.all([getFileMTime(commandFile, true), getFileMTime(filename)]);
                 return mTimePromise.then(function (mtimes) {
-
                     if (previousMTimes[relativeFilename] && currentMTimes[relativeFilename] === previousMTimes[relativeFilename] &&
                             previousMTimes[relativeCommandFile] && currentMTimes[relativeCommandFile] === previousMTimes[relativeCommandFile]) {
                         // use a cached version of the extracted data
