@@ -1,7 +1,7 @@
 {
   "name": "metastore",
   "description": "data metastore",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "homepage": "https://github.com/azulus/metastore",
   "authors": [
     "Jeremy Stanley <github@azulus.com> (https://github.com/azulus)"
