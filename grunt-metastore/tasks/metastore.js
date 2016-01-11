@@ -148,12 +148,16 @@ module.exports = function(grunt) {
                             exec(strCommand.replace(/\{\{\s*filename\s*\}\}/g, filename), function (err, stdout, stderr) {
                                 // use stderr as a way of outputting debugging data from extractor
                                 if (stderr) {
-                                    console.log(stderr);
+                                    reject(new Error(stderr));
                                 } else if (err) {
                                     reject(err);
                                 } else {
                                     process.stdout.write(".");
-                                    resolve(JSON.parse(stdout));
+                                    try {
+                                        resolve(JSON.parse(stdout));
+                                    } catch (e) {
+                                        reject(e);
+                                    }
                                 }
                             });
                         });
