@@ -1,14 +1,30 @@
+//TODO(tuanderful): implement modifiers
+var constructRegex = function(str) {
+    var expression = str.substr(1, str.length-2);
+    return new RegExp(expression);
+};
+
 var getChainEvaluator = function (chain) {
     var state = {};
     return function(obj) {
         if (chain === undefined) return true;
+        var found;
 
         for (var i = 1; i < chain.length; i++) {
             var step = chain[i];
 
             switch(step.key) {
                 case "id":
-                    if (step.args.indexOf(obj.id) === -1) {
+                    found = false;
+                    step.args.forEach(function(arg){
+                        if ((arg === obj.id) ||
+                            (arg.match(/^\/.*\/$/) && obj.id.match(constructRegex(arg)))) {
+
+                            found = true;
+                        }
+                    });
+
+                    if (!found) {
                         return false;
                     }
                     break;
