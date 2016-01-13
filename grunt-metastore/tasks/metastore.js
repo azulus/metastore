@@ -109,8 +109,14 @@ module.exports = function(grunt) {
              * @return {Promise.<number>}
              */
             var getFileMTime = function (filename, useMD5) {
-                // Decide whether to hash the file using the md5-file module or MTimes
-                var hashFn = useMD5 ? md5 : fs.stat;
+                useMD5 = true;
+
+                var hashFn = useMD5 ? md5 : function(filename, callback) {
+                   fs.stat(filename, function (err, data){
+                       if (err) return callback(err);
+                       callback(undefined, data.mtime.getTime());
+                   });
+               };
 
                 if (!currentMTimePromises[filename]) {
                     currentMTimePromises[filename] = new Promise(function(resolve, reject) {
@@ -119,7 +125,7 @@ module.exports = function(grunt) {
                                 reject(err);
                             } else {
                                 var relativeFilename = path.relative(relativeRoot, filename);
-                                currentMTimes[relativeFilename] = useMD5 ? data : data.mtime.getTime();
+                                currentMTimes[relativeFilename] = data;
                                 resolve(currentMTimes[relativeFilename]);
                             }
                         });
