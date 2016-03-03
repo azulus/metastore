@@ -38,12 +38,15 @@ var enqueuePromiseGenerator = function (fn, maxSimultaneous) {
         fnPromise.then(function () {
             numRunning--;
             process.nextTick(runNext);
+        }, function(err) {
+            numRunning--;
+            process.nextTick(runNext);
         });
 
         fnPromise.then(function (data){
             next.resolve(data);
         }, function(err) {
-            next.reject(data);
+            next.reject(err);
         });
     };
 
@@ -222,6 +225,7 @@ module.exports = function(grunt) {
             done();
         }, function (err) {
             grunt.log.error(err);
+            done(false);
         });
     });
 };
